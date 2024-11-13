@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Body, HTTPException, Request, Form
+from fastapi import APIRouter, Body, HTTPException, Request, Form, Header
 from model.customer import Customer
 from service import customer as service
+from service import user as user
 from error import Missing, Duplicate
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
@@ -15,20 +16,32 @@ templates = Jinja2Templates(directory="templates")
 @router.get("")
 @router.get("/", response_class=HTMLResponse)
 def get_all(request : Request):
-    customers = service.get_all()
-    return templates.TemplateResponse("index.html", 
-        {"request" : request, "customers" : customers})
+    
+    # 클라이언트가 보낸 토큰을 가져온다
+    token = request.cookies["token"]
 
+    if user.get_current_user(token):
+        customers = service.get_all()
+        return templates.TemplateResponse("index.html", {"request" : request, "customers" : customers})
+    else:
+        unauthed()
 
-@router.post("/", response_class=HTMLResponse)
+@router.post("/")
 def create_customer(request : Request,
     name = Form(...),
     home = Form(...),
     call_num = Form(...),
     email = Form(...)
-):
-    service.create_customer(Customer(name=name, home=home, call_num=call_num, email=email))
-    return RedirectResponse("/html",status_code=302)
+):  
+    # 클라이언트가 보낸 토큰을 가져온다
+    token = request.cookies["token"]
+
+    # 토큰의 유효성을 판단한다
+    if user.get_current_user(token):
+        service.create_customer(Customer(name=name, home=home, call_num=call_num, email=email))
+        return RedirectResponse("/html",status_code=302)
+    else:
+        unauthed()
 
 @router.post("/update", response_class=HTMLResponse)
 def modify_customer(request : Request,
@@ -38,11 +51,26 @@ def modify_customer(request : Request,
     call_num = Form(...),
     email = Form(...)
     ):
-    service.modify_customer(name, Customer(name=name,home=home,call_num=call_num,email=email))
-    return RedirectResponse("/html",status_code=302)
+    # 클라이언트가 보낸 토큰을 가져온다
+    token = request.cookies["token"]
+
+    # 토큰의 유효성을 판단한다
+    if user.get_current_user(token):
+        service.modify_customer(name, Customer(name=name,home=home,call_num=call_num,email=email))
+        return RedirectResponse("/html",status_code=302)
+    else:
+        unauthed()
 
 @router.post("/delete", response_class=HTMLResponse)
 def delete_customer(request : Request,
     name = Form(...)):
-    service.delete_customer(name)
-    return RedirectResponse("/html",status_code=302)
+    
+    # 클라이언트가 보낸 토큰을 가져온다
+    token = request.cookies["token"]
+
+    # 토큰의 유효성을 판단한다
+    if user.get_current_user(token):
+        service.delete_customer(name)
+        return RedirectResponse("/html",status_code=302)
+    else:
+        unauthed()
